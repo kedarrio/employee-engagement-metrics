@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      base: `/${process.env.VITE_REPO_NAME || 'employee-engagement-metrics'}/`,
+      base: '/employee-engagement-metrics/',
       server: {
         port: 3000,
         host: '0.0.0.0',
