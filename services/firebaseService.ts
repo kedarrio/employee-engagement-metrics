@@ -50,15 +50,17 @@ export const subscribeToEntries = (callback: (entries: SurveyEntry[]) => void): 
     const unsubscribe = onValue(entriesRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // Convert Firebase object to array of SurveyEntry
-        const entries: SurveyEntry[] = Object.entries(data).map(([key, value]: [string, any]) => ({
-          ...value,
-          firebaseId: key, // Store Firebase key for deletion
-        }));
-        callback(entries);
-      } else {
-        callback([]);
-      }
+          // Convert Firebase object to array of SurveyEntry
+          const entries: SurveyEntry[] = Object.entries(data).map(([key, value]: [string, any]) => ({
+            // Preserve original id if present; otherwise use Firebase key
+            id: value?.id ?? key,
+            ...value,
+            firebaseId: key, // Store Firebase key for deletion
+          }));
+          callback(entries);
+        } else {
+          callback([]);
+        }
     }, (error) => {
       console.error('Error subscribing to entries:', error);
       callback([]);
@@ -90,7 +92,8 @@ export const deleteEntry = async (firebaseId: string): Promise<void> => {
 export const clearAllEntries = async (): Promise<void> => {
   try {
     const entriesRef = ref(database, ENTRIES_PATH);
-    await update(entriesRef, {});
+    // Remove the entire entries node
+    await remove(entriesRef);
   } catch (error) {
     console.error('Error clearing entries from Firebase:', error);
     throw error;
