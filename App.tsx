@@ -3,7 +3,7 @@ import { SurveyForm } from './components/SurveyForm';
 import { Settings } from './components/Settings';
 import { SurveyType, SurveyEntry } from './types';
 import { LOCAL_STORAGE_KEY, SURVEY_MODE_KEY } from './constants';
-import { subscribeToEntries, deleteEntry, clearAllEntries, saveEntry } from './services/firebaseService';
+import { subscribeToEntries, deleteEntry, clearAllEntries, saveEntry, subscribeToMode, setMode } from './services/firebaseService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'ENTRY' | 'SETTINGS'>('ENTRY');
@@ -31,13 +31,24 @@ const App: React.FC = () => {
 
     // 2. Subscribe to Firebase entries
     try {
-      const unsubscribe = subscribeToEntries((entries) => {
+      const unsubscribeEntries = subscribeToEntries((entries) => {
         setData(entries);
         setIsLoading(false);
       });
 
-      // Cleanup subscription on unmount
-      return () => unsubscribe();
+      // Subscribe to global mode changes
+      const unsubscribeMode = subscribeToMode((mode) => {
+        setCurrentSurveyType(mode as SurveyType);
+        try {
+          localStorage.setItem(SURVEY_MODE_KEY, mode);
+        } catch {}
+      });
+
+      // Cleanup both subscriptions on unmount
+      return () => {
+        unsubscribeEntries();
+        unsubscribeMode();
+      };
     } catch (error) {
       console.error('Failed to subscribe to Firebase entries:', error);
       setIsLoading(false);
@@ -46,7 +57,13 @@ const App: React.FC = () => {
 
   const handleSurveyTypeChange = (type: SurveyType) => {
     setCurrentSurveyType(type);
-    localStorage.setItem(SURVEY_MODE_KEY, type);
+    try {
+      // Persist globally so all clients update
+      setMode(type);
+      localStorage.setItem(SURVEY_MODE_KEY, type);
+    } catch (error) {
+      console.error('Failed to set global mode:', error);
+    }
   };
 
   const handleSaveEntry = async (entry: SurveyEntry) => {

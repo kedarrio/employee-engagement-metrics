@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, onValue, remove, update, Database } from 'firebase/database';
+import { getDatabase, ref, push, onValue, remove, update, set, Database } from 'firebase/database';
 import { SurveyEntry } from '../types';
 
 // Initialize Firebase
@@ -17,6 +17,7 @@ const app = initializeApp(firebaseConfig);
 const database: Database = getDatabase(app);
 
 const ENTRIES_PATH = 'survey_entries';
+const MODE_PATH = 'app_mode';
 
 export interface FirebaseService {
   saveEntry: (entry: SurveyEntry) => Promise<string>;
@@ -100,9 +101,51 @@ export const clearAllEntries = async (): Promise<void> => {
   }
 };
 
+/**
+ * Set the global app mode (e.g., 'BEFORE' or 'AFTER')
+ */
+export const setMode = async (mode: string): Promise<void> => {
+  try {
+    const modeRef = ref(database, MODE_PATH);
+    await set(modeRef, mode);
+  } catch (error) {
+    console.error('Error setting mode in Firebase:', error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to realtime updates for the global mode.
+ * Returns an unsubscribe function.
+ */
+export const subscribeToMode = (callback: (mode: string) => void): (() => void) => {
+  try {
+    const modeRef = ref(database, MODE_PATH);
+    const unsubscribe = onValue(modeRef, (snapshot) => {
+      const val = snapshot.val();
+      if (val === 'BEFORE' || val === 'AFTER') {
+        callback(val);
+      } else {
+        // default to BEFORE when not set
+        callback('BEFORE');
+      }
+    }, (error) => {
+      console.error('Error subscribing to mode:', error);
+      callback('BEFORE');
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error setting up mode subscription:', error);
+    return () => {};
+  }
+};
+
 export default {
   saveEntry,
   subscribeToEntries,
   deleteEntry,
   clearAllEntries,
+  setMode,
+  subscribeToMode,
 };
